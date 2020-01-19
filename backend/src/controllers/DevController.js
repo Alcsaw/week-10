@@ -1,6 +1,7 @@
 const axios = require('axios');
 const Dev = require('../models/Dev');
 const parseStringAsArray = require('../utils/parseStringAsArray');
+const { findConnections, sendMessage } = require('../websocket');
 
 module.exports = {
     async index(request, response) {
@@ -13,12 +14,17 @@ module.exports = {
         const { github_username, techs, latitude, longitude } = request.body;
 
         let dev = await Dev.findOne( { github_username });
+        
+        
+        
 
         if (! dev) {
             const apiResponse = await axios.get(`https://api.github.com/users/${github_username}`);
-            // se não existir a variável name, no momento da desestruturação, ela recebe
-            // o valor de login, que é campo obrigatório no Github e com certeza existirá
-            const { name = login, avatar_url, bio } = apiResponse.data;
+            
+            let { login, name, avatar_url, bio } = apiResponse.data;
+            if (! name) {
+                name = login
+            }
         
             const techsArray = parseStringAsArray(techs);
         
@@ -35,9 +41,20 @@ module.exports = {
                 techs: techsArray,
                 location,
             });
+
+            // Filtrar as conexões que estão há no máxumo 10km de distância e
+            // que o novo dev possua pelo menos uma das tecnologias buscadas
+
+            const sendSocketMessageTo = findConnections(
+                { latitude, longitude },
+                techsArray,
+            );
+
+            sendMessage(sendSocketMessageTo, 'new-dev', dev);
+            
+            return response.json(dev);
         }
-    
-        return response.json(dev);
+        return response.json({'error': 'Dev já cadastrado!'});
     },
 
     async update() {
