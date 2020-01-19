@@ -29,13 +29,16 @@ function DevForm({ onSubmit }) {
 
     async function handleAddDev(e) {
         e.preventDefault();
-
-        await onSubmit({
+        const response = await onSubmit({
             github_username,
             techs,
             latitude,
             longitude
         });
+
+        if (! response) {
+          alert('Dev já cadastrado!');
+        }
 
         setGithubUsername('');
         setTechs('');
